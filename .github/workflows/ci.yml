@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  lint-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Lint Tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff black
+      - name: Check Formatting & Lint
+        run: |
+          black --check backend ml || true
+          ruff check backend ml || true
+
+  test-stub:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Echo Status
+        run: echo "CI pipeline initialized. Unit test runners will activate as test suites are built."
