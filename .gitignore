@@ -68,6 +68,12 @@ ml/data/processed/*
 ml/artifacts/*.joblib
 ml/artifacts/*.pkl
 
+# SQLite dev databases
+*.db
+*.db-journal
+acadpulse.db
+test.db
+
 # OS & IDE
 .DS_Store
 Thumbs.db
