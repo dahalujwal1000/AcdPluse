@@ -47,6 +47,7 @@ yarn-error.log*
 .next/
 out/
 coverage/
+*.tsbuildinfo
 
 # Testing & Coverage
 .tox/

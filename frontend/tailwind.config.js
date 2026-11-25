@@ -8,12 +8,12 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        background: "#090d16",
-        surface: "#111827",
-        "surface-card": "#162033",
-        "surface-card-hover": "#1d2b45",
-        border: "#1f2d47",
-        "border-muted": "#162238",
+        background: "#080c14",
+        surface: "#0f172a",
+        "surface-card": "#131d31",
+        "surface-card-hover": "#1a2742",
+        border: "#1e293b",
+        "border-muted": "#162033",
         brand: {
           50: "#eef7ff",
           100: "#d9eeff",
@@ -36,8 +36,8 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif"],
-        mono: ["JetBrains Mono", "Menlo", "Courier New", "monospace"],
+        sans: ["var(--font-inter)", "Inter", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        mono: ["var(--font-jetbrains-mono)", "JetBrains Mono", "Menlo", "monospace"],
       },
     },
   },

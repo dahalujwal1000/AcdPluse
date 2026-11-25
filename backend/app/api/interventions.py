@@ -13,7 +13,7 @@ router = APIRouter(prefix="/interventions", tags=["Interventions"])
 def create_intervention(
     body: InterventionCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(["teacher", "admin"])),
+    current_user: User = Depends(require_role(["teacher"])),
 ):
     run = db.query(PredictionRun).filter(PredictionRun.id == body.prediction_run_id).first()
     if not run:

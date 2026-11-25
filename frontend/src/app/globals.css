@@ -3,15 +3,59 @@
 @tailwind utilities;
 
 :root {
-  --background: #090d16;
+  --background: #080c14;
   --foreground: #f1f5f9;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer utilities {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Custom range slider styling */
+input[type="range"].acad-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  background: #1e293b;
+  outline: none;
+}
+
+input[type="range"].acad-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #3b82f6;
+  border: 2px solid #eff6ff;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.6);
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+input[type="range"].acad-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  background: #60a5fa;
+}
+
+input[type="range"].acad-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #3b82f6;
+  border: 2px solid #eff6ff;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.6);
+  cursor: pointer;
 }
 
 /* Custom scrollbars */
@@ -20,12 +64,12 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #090d16;
+  background: #080c14;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1f2d47;
+  background: #1e293b;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #2b3d5e;
+  background: #334155;
 }

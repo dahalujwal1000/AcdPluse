@@ -1,208 +1,654 @@
 "use client";
 
-import React, { useState } from "react";
-import { 
-  ShieldCheck, 
-  AlertTriangle, 
-  HelpCircle, 
-  Sliders, 
-  TrendingUp, 
-  CheckCircle2, 
-  Clock, 
-  BookOpen, 
-  Users, 
-  ArrowRight,
+import React, { useMemo, useState } from "react";
+import {
+  Sliders,
+  CheckCircle2,
   Sparkles,
-  BarChart3,
-  Layers
+  Flame,
+  CalendarCheck,
+  TrendingDown,
+  TrendingUp,
+  RotateCcw,
+  Wand2,
+  Info,
+  AlertOctagon,
+  BookOpen,
 } from "lucide-react";
 import {
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  Cell,
   LineChart,
   Line,
-  CartesianGrid
+  CartesianGrid,
+  ReferenceLine,
 } from "recharts";
+import { StatusBadge, type SupportTier } from "@/components/StatusBadge";
+import { MetricCard } from "@/components/MetricCard";
+import { cn } from "@/lib/utils";
 
-// Mock Student Profile
-const INITIAL_STUDENT = {
+type CheckpointWeek = 4 | 8 | 12;
+
+interface CheckpointSnapshot {
+  week: CheckpointWeek;
+  persona: string;
+  engagementRate: number;
+  engagementDelta: string;
+  avgScore: number;
+  classMedian: number;
+  lateSubmissions: number;
+  streakWeeks: number;
+  trajectory: { week: string; attendance: number; score: number }[];
+  weeklyActivity: { week: number; status: "active" | "partial" | "missed" }[];
+  shap: {
+    feature: string;
+    impact: number;
+    direction: "risk" | "safe";
+    description: string;
+  }[];
+}
+
+const STUDENT_PROFILE = {
   name: "Alex Rivera",
   id: "STD-2026-8812",
   course: "CS302 — Data Structures & Algorithms",
   term: "Fall 2026",
-  checkpoint: 8,
-  riskProb: 0.68,
-  tier: "High", // Support Priority
-  persona: "Inconsistent Pacer (Cluster 1)",
-  engagementRate: 0.45,
-  avgScore: 54.0,
-  lateSubmissions: 2,
 };
 
-const TRAJECTORY_DATA = [
-  { week: "Week 2", attendance: 80, score: 70, clicks: 85 },
-  { week: "Week 4", attendance: 65, score: 62, clicks: 60 },
-  { week: "Week 6", attendance: 50, score: 55, clicks: 40 },
-  { week: "Week 8", attendance: 45, score: 54, clicks: 35 },
-];
+const CHECKPOINT_DATA: Record<CheckpointWeek, CheckpointSnapshot> = {
+  4: {
+    week: 4,
+    persona: "Steady Starter (Cluster 0)",
+    engagementRate: 0.72,
+    engagementDelta: "-8% from Week 2",
+    avgScore: 66.0,
+    classMedian: 70,
+    lateSubmissions: 0,
+    streakWeeks: 4,
+    trajectory: [
+      { week: "W1", attendance: 85, score: 74 },
+      { week: "W2", attendance: 80, score: 70 },
+      { week: "W3", attendance: 75, score: 68 },
+      { week: "W4", attendance: 65, score: 62 },
+    ],
+    weeklyActivity: [
+      { week: 1, status: "active" },
+      { week: 2, status: "active" },
+      { week: 3, status: "active" },
+      { week: 4, status: "partial" },
+    ],
+    shap: [
+      {
+        feature: "Rolling Engagement Rate",
+        impact: 0.05,
+        direction: "risk",
+        description: "Slight dip in Week 4 VLE sessions",
+      },
+      {
+        feature: "Assessment Score (Mean)",
+        impact: -0.06,
+        direction: "safe",
+        description: "66% average remains near cohort median",
+      },
+      {
+        feature: "On-Time Submissions",
+        impact: -0.08,
+        direction: "safe",
+        description: "All early formative tasks submitted on time",
+      },
+      {
+        feature: "Prior Attempts",
+        impact: -0.04,
+        direction: "safe",
+        description: "First-time enrollment in CS302",
+      },
+    ],
+  },
+  8: {
+    week: 8,
+    persona: "Inconsistent Pacer (Cluster 1)",
+    engagementRate: 0.45,
+    engagementDelta: "-20% from Week 4",
+    avgScore: 54.0,
+    classMedian: 68,
+    lateSubmissions: 2,
+    streakWeeks: 2,
+    trajectory: [
+      { week: "W1", attendance: 85, score: 74 },
+      { week: "W2", attendance: 80, score: 70 },
+      { week: "W3", attendance: 75, score: 68 },
+      { week: "W4", attendance: 65, score: 62 },
+      { week: "W5", attendance: 58, score: 59 },
+      { week: "W6", attendance: 50, score: 55 },
+      { week: "W7", attendance: 47, score: 55 },
+      { week: "W8", attendance: 45, score: 54 },
+    ],
+    weeklyActivity: [
+      { week: 1, status: "active" },
+      { week: 2, status: "active" },
+      { week: 3, status: "active" },
+      { week: 4, status: "partial" },
+      { week: 5, status: "partial" },
+      { week: 6, status: "missed" },
+      { week: 7, status: "partial" },
+      { week: 8, status: "partial" },
+    ],
+    shap: [
+      {
+        feature: "Rolling Engagement Rate",
+        impact: 0.18,
+        direction: "risk",
+        description: "Low recent VLE & session activity increases support priority",
+      },
+      {
+        feature: "Assessment Score (Mean)",
+        impact: 0.14,
+        direction: "risk",
+        description: "Current average (54%) is 14 pts below class median",
+      },
+      {
+        feature: "Late Submissions (2)",
+        impact: 0.08,
+        direction: "risk",
+        description: "2 assignments submitted past due date",
+      },
+      {
+        feature: "Prior Attempts",
+        impact: -0.04,
+        direction: "safe",
+        description: "No repeated course attempts",
+      },
+      {
+        feature: "Early Quiz Activity",
+        impact: -0.06,
+        direction: "safe",
+        description: "Completed introductory review modules",
+      },
+    ],
+  },
+  12: {
+    week: 12,
+    persona: "Inconsistent Pacer (Cluster 1)",
+    engagementRate: 0.58,
+    engagementDelta: "+13% from Week 8",
+    avgScore: 61.0,
+    classMedian: 69,
+    lateSubmissions: 2,
+    streakWeeks: 4,
+    trajectory: [
+      { week: "W1", attendance: 85, score: 74 },
+      { week: "W2", attendance: 80, score: 70 },
+      { week: "W4", attendance: 65, score: 62 },
+      { week: "W6", attendance: 50, score: 55 },
+      { week: "W8", attendance: 45, score: 54 },
+      { week: "W10", attendance: 54, score: 58 },
+      { week: "W12", attendance: 58, score: 61 },
+    ],
+    weeklyActivity: [
+      { week: 1, status: "active" },
+      { week: 2, status: "active" },
+      { week: 3, status: "active" },
+      { week: 4, status: "partial" },
+      { week: 5, status: "partial" },
+      { week: 6, status: "missed" },
+      { week: 7, status: "partial" },
+      { week: 8, status: "partial" },
+      { week: 9, status: "active" },
+      { week: 10, status: "active" },
+      { week: 11, status: "active" },
+      { week: 12, status: "active" },
+    ],
+    shap: [
+      {
+        feature: "Assessment Score (Mean)",
+        impact: 0.1,
+        direction: "risk",
+        description: "Recovering (61%), still 8 pts below cohort median",
+      },
+      {
+        feature: "Late Submissions (2)",
+        impact: 0.06,
+        direction: "risk",
+        description: "Earlier late submissions remain in cumulative window",
+      },
+      {
+        feature: "Recent Engagement Trend",
+        impact: -0.09,
+        direction: "safe",
+        description: "4-week consecutive engagement recovery",
+      },
+      {
+        feature: "Prior Attempts",
+        impact: -0.04,
+        direction: "safe",
+        description: "No repeated course attempts",
+      },
+    ],
+  },
+};
 
-const INITIAL_SHAP = [
-  { feature: "Rolling Engagement Rate", impact: 0.18, direction: "risk", description: "Low recent attendance increases risk" },
-  { feature: "Assessment Score (Mean)", impact: 0.14, direction: "risk", description: "Current average (54%) is below class median" },
-  { feature: "Late Submissions (2)", impact: 0.08, direction: "risk", description: "2 assignments submitted past due date" },
-  { feature: "Prior Attempts", impact: -0.04, direction: "safe", description: "No repeated course attempts" },
-  { feature: "Early Quiz Activity", impact: -0.06, direction: "safe", description: "Completed introductory review modules" },
-];
+function calculateSimulatedRisk(eng: number, score: number): number {
+  const logit = -(eng * 3.8) - score * 0.045 + 3.4;
+  const prob = 1.0 / (1.0 + Math.exp(-logit));
+  return Math.max(0.05, Math.min(0.95, prob));
+}
+
+function getTier(risk: number): SupportTier {
+  if (risk < 0.35) return "Safe";
+  if (risk < 0.65) return "Moderate";
+  return "High";
+}
 
 export default function StudentPortal() {
-  // Slider states for What-If
-  const [targetEngagement, setTargetEngagement] = useState(INITIAL_STUDENT.engagementRate);
-  const [targetScore, setTargetScore] = useState(INITIAL_STUDENT.avgScore);
+  const [checkpoint, setCheckpoint] = useState<CheckpointWeek>(8);
+  const snapshot = CHECKPOINT_DATA[checkpoint];
 
-  // Dynamic risk calculation based on sliders
-  const calculateSimulatedRisk = (eng: number, score: number) => {
-    const logit = -(eng * 3.8) - (score * 0.045) + 3.4;
-    const prob = 1.0 / (1.0 + Math.exp(-logit));
-    return Math.max(0.05, Math.min(0.95, prob));
+  const [targetEngagement, setTargetEngagement] = useState<number>(
+    snapshot.engagementRate
+  );
+  const [targetScore, setTargetScore] = useState<number>(snapshot.avgScore);
+  const [constrainedMode, setConstrainedMode] = useState<boolean>(false);
+
+  const handleCheckpointChange = (week: CheckpointWeek) => {
+    setCheckpoint(week);
+    setTargetEngagement(CHECKPOINT_DATA[week].engagementRate);
+    setTargetScore(CHECKPOINT_DATA[week].avgScore);
+    setConstrainedMode(false);
   };
 
-  const simRisk = calculateSimulatedRisk(targetEngagement, targetScore);
-  const isSafe = simRisk < 0.35;
-  const isModerate = simRisk >= 0.35 && simRisk < 0.65;
+  const maxEngagementBound = constrainedMode ? 0.55 : 1.0;
+  const maxScoreBound = constrainedMode ? 56 : 95;
 
-  const currentTier = isSafe ? "Safe" : isModerate ? "Moderate Support" : "High Support Priority";
-  const tierColor = isSafe 
-    ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" 
-    : isModerate 
-    ? "text-amber-400 bg-amber-500/10 border-amber-500/20" 
-    : "text-rose-400 bg-rose-500/10 border-rose-500/20";
+  const effectiveEng = Math.min(targetEngagement, maxEngagementBound);
+  const effectiveScore = Math.min(targetScore, maxScoreBound);
+
+  const baselineRisk = calculateSimulatedRisk(
+    snapshot.engagementRate,
+    snapshot.avgScore
+  );
+  const simRisk = calculateSimulatedRisk(effectiveEng, effectiveScore);
+  const simTier = getTier(simRisk);
+
+  // Bounded grid search for minimum-cost plan to Safe (< 0.35)
+  const optimalPlan = useMemo(() => {
+    if (baselineRisk < 0.35) {
+      return {
+        feasible: true,
+        alreadySafe: true,
+        eng: snapshot.engagementRate,
+        score: snapshot.avgScore,
+      };
+    }
+
+    let best: { eng: number; score: number; cost: number } | null = null;
+    for (
+      let e = snapshot.engagementRate;
+      e <= maxEngagementBound + 0.001;
+      e += 0.05
+    ) {
+      for (let s = snapshot.avgScore; s <= maxScoreBound; s += 2) {
+        const risk = calculateSimulatedRisk(e, s);
+        if (risk < 0.35) {
+          const cost =
+            (e - snapshot.engagementRate) * 1.5 +
+            ((s - snapshot.avgScore) / 100) * 1.0;
+          if (!best || cost < best.cost) {
+            best = { eng: Math.min(1, Number(e.toFixed(2))), score: s, cost };
+          }
+        }
+      }
+    }
+
+    if (!best) {
+      return { feasible: false, alreadySafe: false };
+    }
+    return {
+      feasible: true,
+      alreadySafe: false,
+      eng: best.eng,
+      score: best.score,
+    };
+  }, [
+    baselineRisk,
+    snapshot.engagementRate,
+    snapshot.avgScore,
+    maxEngagementBound,
+    maxScoreBound,
+  ]);
+
+  const applyOptimalPlan = () => {
+    if (optimalPlan.feasible && optimalPlan.eng !== undefined && optimalPlan.score !== undefined) {
+      setTargetEngagement(optimalPlan.eng);
+      setTargetScore(optimalPlan.score);
+    }
+  };
+
+  const resetToBaseline = () => {
+    setTargetEngagement(snapshot.engagementRate);
+    setTargetScore(snapshot.avgScore);
+  };
+
+  const maxAbsShap = Math.max(
+    0.2,
+    ...snapshot.shap.map((item) => Math.abs(item.impact))
+  );
 
   return (
-    <div className="min-h-screen bg-[#090d16] text-slate-100 p-6 md:p-10">
-      {/* Top Header */}
-      <header className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between pb-8 border-b border-slate-800/80 gap-4">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-8 space-y-8">
+      {/* Header */}
+      <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 pb-6 border-b border-slate-800/80">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-blue-400 mb-1">
-            <Layers className="w-3.5 h-3.5" /> AcadPulse Academic Trajectory
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-blue-400 mb-1.5">
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Student Academic Trajectory</span>
+            <span className="text-slate-600">•</span>
+            <span className="font-mono text-slate-400">{STUDENT_PROFILE.id}</span>
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
-            {INITIAL_STUDENT.name}
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+            {STUDENT_PROFILE.name}
           </h1>
-          <p className="text-sm text-slate-400 mt-0.5">
-            {INITIAL_STUDENT.course} • Checkpoint Week {INITIAL_STUDENT.checkpoint}
+          <p className="text-sm text-slate-400 mt-1">
+            {STUDENT_PROFILE.course} • {STUDENT_PROFILE.term}
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className={`px-4 py-2 rounded-xl border text-sm font-semibold flex items-center gap-2 ${tierColor}`}>
-            {isSafe ? <ShieldCheck className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
-            Status: {currentTier}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Checkpoint Selector */}
+          <div
+            role="group"
+            aria-label="Checkpoint week selector"
+            className="flex items-center gap-1 bg-[#0f172a] border border-slate-800 p-1 rounded-xl"
+          >
+            {([4, 8, 12] as CheckpointWeek[]).map((wk) => (
+              <button
+                key={wk}
+                type="button"
+                onClick={() => handleCheckpointChange(wk)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
+                  checkpoint === wk
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                )}
+              >
+                Week {wk}
+              </button>
+            ))}
           </div>
-          <div className="px-3.5 py-2 bg-slate-800/60 rounded-xl border border-slate-700/50 text-xs font-medium text-slate-300">
-            Persona: <span className="text-white font-semibold">{INITIAL_STUDENT.persona}</span>
+
+          <StatusBadge tier={getTier(baselineRisk)} />
+
+          <div className="px-3.5 py-1.5 bg-[#0f172a] rounded-xl border border-slate-800 text-xs font-medium text-slate-300">
+            Persona:{" "}
+            <span className="text-white font-semibold">{snapshot.persona}</span>
           </div>
         </div>
       </header>
 
       {/* Main Grid */}
-      <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 mt-8">
-        {/* Left Column: Trajectory and SHAP Diagnostics (7 Cols) */}
-        <section className="lg:col-span-7 space-y-8">
-          {/* Diagnostic Key Numbers */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-[#111827] border border-slate-800/80 rounded-2xl p-4.5">
-              <span className="text-xs font-medium text-slate-400">Engagement Rate</span>
-              <p className="text-2xl font-bold text-white mt-1">{(INITIAL_STUDENT.engagementRate * 100).toFixed(0)}%</p>
-              <span className="text-xs text-rose-400 flex items-center gap-1 mt-1 font-medium">
-                -20% from W2
-              </span>
+      <main className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left Column: Metrics, Trajectory, Streaks, SHAP (7 Cols) */}
+        <section className="lg:col-span-7 space-y-6">
+          {/* KPI Strip */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <MetricCard
+              label="Engagement Rate"
+              value={`${(snapshot.engagementRate * 100).toFixed(0)}%`}
+              subtext={snapshot.engagementDelta}
+              subtextTone={
+                snapshot.engagementDelta.startsWith("+") ? "positive" : "danger"
+              }
+              icon={
+                snapshot.engagementDelta.startsWith("+") ? (
+                  <TrendingUp className="w-4 h-4 text-emerald-400" />
+                ) : (
+                  <TrendingDown className="w-4 h-4 text-rose-400" />
+                )
+              }
+            />
+            <MetricCard
+              label="Score Mean"
+              value={
+                <>
+                  {snapshot.avgScore}
+                  <span className="text-sm font-normal text-slate-400">
+                    {" "}
+                    / 100
+                  </span>
+                </>
+              }
+              subtext={`Cohort median: ${snapshot.classMedian}`}
+              subtextTone={
+                snapshot.avgScore >= snapshot.classMedian ? "positive" : "warning"
+              }
+            />
+            <MetricCard
+              label="Late Submissions"
+              value={snapshot.lateSubmissions}
+              subtext={
+                snapshot.lateSubmissions === 0
+                  ? "All tasks on time"
+                  : "Cumulative to date"
+              }
+              subtextTone={snapshot.lateSubmissions === 0 ? "positive" : "neutral"}
+              icon={<CalendarCheck className="w-4 h-4" />}
+            />
+            <MetricCard
+              label="Active Streak"
+              value={`${snapshot.streakWeeks} wks`}
+              subtext={`Up to Week ${checkpoint}`}
+              subtextTone="positive"
+              icon={<Flame className="w-4 h-4 text-amber-400" />}
+            />
+          </div>
+
+          {/* Weekly Engagement & Submission Streak Strip */}
+          <div className="bg-[#0f172a] border border-slate-800/80 rounded-2xl p-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+              <div>
+                <h2 className="text-sm font-semibold text-white">
+                  Weekly Engagement &amp; Submission Consistency
+                </h2>
+                <p className="text-xs text-slate-400">
+                  Leak-free observations recorded on or before Week {checkpoint}
+                </p>
+              </div>
+              <div className="flex items-center gap-3 text-[11px] text-slate-400">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
+                  Active
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-amber-500" />
+                  Partial
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-rose-500/80" />
+                  Missed
+                </span>
+              </div>
             </div>
-            <div className="bg-[#111827] border border-slate-800/80 rounded-2xl p-4.5">
-              <span className="text-xs font-medium text-slate-400">Score Mean</span>
-              <p className="text-2xl font-bold text-white mt-1">{INITIAL_STUDENT.avgScore} <span className="text-sm font-normal text-slate-400">/ 100</span></p>
-              <span className="text-xs text-amber-400 flex items-center gap-1 mt-1 font-medium">
-                Median is 68
-              </span>
-            </div>
-            <div className="bg-[#111827] border border-slate-800/80 rounded-2xl p-4.5">
-              <span className="text-xs font-medium text-slate-400">Late Deliveries</span>
-              <p className="text-2xl font-bold text-white mt-1">{INITIAL_STUDENT.lateSubmissions}</p>
-              <span className="text-xs text-slate-400 mt-1 block">Due dates missed</span>
+
+            <div className="grid grid-cols-4 sm:grid-cols-8 md:grid-cols-12 gap-2">
+              {snapshot.weeklyActivity.map((item) => {
+                const bg =
+                  item.status === "active"
+                    ? "bg-emerald-500/15 border-emerald-500/35 text-emerald-300"
+                    : item.status === "partial"
+                    ? "bg-amber-500/15 border-amber-500/35 text-amber-300"
+                    : "bg-rose-500/15 border-rose-500/35 text-rose-300";
+                return (
+                  <div
+                    key={item.week}
+                    title={`Week ${item.week}: ${item.status}`}
+                    className={cn(
+                      "rounded-lg border py-2 text-center text-[11px] font-mono font-semibold",
+                      bg
+                    )}
+                  >
+                    W{item.week}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          {/* Trajectory Trend Chart */}
-          <div className="bg-[#111827] border border-slate-800/80 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-6">
+          {/* Temporal Progression Chart */}
+          <div className="bg-[#0f172a] border border-slate-800/80 rounded-2xl p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
               <div>
-                <h3 className="text-base font-semibold text-white">Temporal Progression</h3>
-                <p className="text-xs text-slate-400">Attendance vs. Assessment performance up to Week 8</p>
+                <h2 className="text-base font-semibold text-white">
+                  Temporal Progression
+                </h2>
+                <p className="text-xs text-slate-400">
+                  Engagement % vs. assessment score up to Week {checkpoint}
+                </p>
               </div>
               <div className="flex items-center gap-4 text-xs font-medium">
                 <span className="flex items-center gap-1.5 text-blue-400">
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span> Attendance %
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                  Engagement %
                 </span>
                 <span className="flex items-center gap-1.5 text-indigo-400">
-                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-400"></span> Assessment Score
+                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-400" />
+                  Assessment Score
                 </span>
               </div>
             </div>
 
-            <div className="h-56 w-full">
+            <div className="h-60 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={TRAJECTORY_DATA}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2d47" vertical={false} />
-                  <XAxis dataKey="week" stroke="#64748b" tickLine={false} textAnchor="middle" />
-                  <YAxis stroke="#64748b" tickLine={false} domain={[0, 100]} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: "#162033", borderColor: "#1f2d47", borderRadius: "8px", color: "#f8fafc" }} 
+                <LineChart data={snapshot.trajectory}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#1e293b"
+                    vertical={false}
                   />
-                  <Line type="monotone" dataKey="attendance" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4 }} />
-                  <Line type="monotone" dataKey="score" stroke="#818cf8" strokeWidth={2.5} dot={{ r: 4 }} />
+                  <XAxis
+                    dataKey="week"
+                    stroke="#64748b"
+                    tick={{ fontSize: 12, fill: "#94a3b8" }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    stroke="#64748b"
+                    tick={{ fontSize: 12, fill: "#94a3b8" }}
+                    tickLine={false}
+                    domain={[0, 100]}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#131d31",
+                      borderColor: "#1e293b",
+                      borderRadius: "10px",
+                      color: "#f8fafc",
+                      fontSize: "12px",
+                    }}
+                  />
+                  <ReferenceLine
+                    y={65}
+                    stroke="#334155"
+                    strokeDasharray="4 4"
+                    label={{
+                      value: "Target 65",
+                      fill: "#64748b",
+                      fontSize: 10,
+                      position: "insideTopRight",
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="attendance"
+                    name="Engagement %"
+                    stroke="#3b82f6"
+                    strokeWidth={2.5}
+                    dot={{ r: 4, fill: "#3b82f6" }}
+                    activeDot={{ r: 6 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="score"
+                    name="Assessment Score"
+                    stroke="#818cf8"
+                    strokeWidth={2.5}
+                    dot={{ r: 4, fill: "#818cf8" }}
+                    activeDot={{ r: 6 }}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           </div>
 
           {/* Explainability: SHAP Feature Attributions */}
-          <div className="bg-[#111827] border border-slate-800/80 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
+          <div className="bg-[#0f172a] border border-slate-800/80 rounded-2xl p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5">
               <div>
-                <h3 className="text-base font-semibold text-white flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-400" /> Explainable Model Factors (SHAP)
-                </h3>
+                <h2 className="text-base font-semibold text-white flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-400" /> Explainable
+                  Model Factors (SHAP)
+                </h2>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Local feature contributions to Week 8 risk assessment
+                  Local feature contributions to Week {checkpoint} Support
+                  Priority
                 </p>
               </div>
-              <span className="text-xs px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg border border-slate-700/60 font-mono">
-                TreeExplainer v1.0
+              <span className="text-[11px] px-2.5 py-1 bg-slate-800/90 text-slate-300 rounded-lg border border-slate-700/60 font-mono self-start sm:self-auto">
+                TreeExplainer • w{checkpoint}-v1.0
               </span>
             </div>
 
-            <div className="space-y-3 mt-4">
-              {INITIAL_SHAP.map((item, idx) => {
+            <div className="space-y-3">
+              {snapshot.shap.map((item) => {
                 const isRisk = item.direction === "risk";
+                const barWidth = Math.min(
+                  100,
+                  (Math.abs(item.impact) / maxAbsShap) * 100
+                );
                 return (
-                  <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-slate-900/60 border border-slate-800/80">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-slate-200">{item.feature}</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded font-medium ${isRisk ? 'bg-rose-500/10 text-rose-400' : 'bg-emerald-500/10 text-emerald-400'}`}>
-                          {isRisk ? "+ Increased Risk" : "- Fosters Success"}
+                  <div
+                    key={item.feature}
+                    className="p-3.5 rounded-xl bg-[#0b1120] border border-slate-800/80"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-semibold text-slate-100">
+                          {item.feature}
+                        </span>
+                        <span
+                          className={cn(
+                            "text-[10px] px-2 py-0.5 rounded-full font-semibold",
+                            isRisk
+                              ? "bg-rose-500/10 text-rose-300 border border-rose-500/20"
+                              : "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
+                          )}
+                        >
+                          {isRisk ? "Increases Priority" : "Fosters Success"}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-400 mt-1">{item.description}</p>
-                    </div>
-                    <div className="text-right pl-4">
-                      <span className={`text-sm font-mono font-bold ${isRisk ? 'text-rose-400' : 'text-emerald-400'}`}>
-                        {item.impact > 0 ? `+${item.impact.toFixed(2)}` : item.impact.toFixed(2)}
+                      <span
+                        className={cn(
+                          "text-sm font-mono font-bold tabular-nums shrink-0",
+                          isRisk ? "text-rose-400" : "text-emerald-400"
+                        )}
+                      >
+                        {item.impact > 0
+                          ? `+${item.impact.toFixed(2)}`
+                          : item.impact.toFixed(2)}
                       </span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {item.description}
+                    </p>
+                    <div className="w-full h-1.5 bg-slate-800/80 rounded-full overflow-hidden mt-2.5">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all duration-300",
+                          isRisk ? "bg-rose-500/80" : "bg-emerald-500/80"
+                        )}
+                        style={{ width: `${barWidth}%` }}
+                      />
                     </div>
                   </div>
                 );
@@ -212,116 +658,211 @@ export default function StudentPortal() {
         </section>
 
         {/* Right Column: Counterfactual "What-If" Simulator (5 Cols) */}
-        <section className="lg:col-span-5 space-y-6">
-          <div className="bg-[#111827] border border-slate-800/80 rounded-2xl p-6 sticky top-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-blue-500/10 text-blue-400 rounded-xl">
+        <section className="lg:col-span-5">
+          <div className="bg-[#0f172a] border border-slate-800/80 rounded-2xl p-6 lg:sticky lg:top-24 space-y-6">
+            <div className="flex items-start justify-between gap-3 pb-4 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-blue-500/10 text-blue-400 rounded-xl border border-blue-500/20">
                   <Sliders className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">Counterfactual "What-If"</h3>
-                  <p className="text-xs text-slate-400">Simulate feasible behavioural adjustments</p>
+                  <h2 className="text-base font-bold text-white">
+                    Counterfactual &ldquo;What-If&rdquo;
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Explore feasible behavioural adjustments
+                  </p>
                 </div>
               </div>
+
+              <button
+                type="button"
+                onClick={() => setConstrainedMode((prev) => !prev)}
+                className={cn(
+                  "text-[11px] px-2.5 py-1 rounded-lg border font-medium transition-colors",
+                  constrainedMode
+                    ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
+                    : "bg-slate-800/60 border-slate-700 text-slate-400 hover:text-slate-200"
+                )}
+                title="Toggle tight feasibility bounds to preview the 'No feasible plan' state"
+              >
+                {constrainedMode ? "Tight Bounds: On" : "Test Tight Bounds"}
+              </button>
             </div>
 
-            {/* Simulated Outcome Display */}
-            <div className="my-6 p-4.5 rounded-xl bg-slate-900/80 border border-slate-800">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                Projected Trajectory
+            {/* Projected Outcome Display */}
+            <div className="p-5 rounded-xl bg-[#0b1120] border border-slate-800">
+              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">
+                Projected Support Priority
               </span>
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <span className="text-3xl font-extrabold text-white font-mono">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-extrabold text-white font-mono tabular-nums">
                     {(simRisk * 100).toFixed(0)}%
                   </span>
-                  <span className="text-xs text-slate-400 ml-1.5 font-medium">Support Priority</span>
+                  <span className="text-xs text-slate-400">
+                    (Baseline {(baselineRisk * 100).toFixed(0)}%)
+                  </span>
                 </div>
-                <span className={`text-xs px-3 py-1 rounded-full font-bold border ${tierColor}`}>
-                  {currentTier}
-                </span>
+                <StatusBadge tier={simTier} size="sm" />
               </div>
 
-              {/* Progress Bar */}
-              <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden mt-3 relative">
-                <div 
-                  className={`h-full transition-all duration-300 ${isSafe ? 'bg-emerald-500' : isModerate ? 'bg-amber-500' : 'bg-rose-500'}`}
+              {/* Segmented Progress Bar */}
+              <div className="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden mt-4">
+                <div
+                  className={cn(
+                    "h-full transition-all duration-300",
+                    simTier === "Safe"
+                      ? "bg-emerald-500"
+                      : simTier === "Moderate"
+                      ? "bg-amber-500"
+                      : "bg-rose-500"
+                  )}
                   style={{ width: `${Math.min(100, simRisk * 100)}%` }}
                 />
               </div>
-              <div className="flex justify-between text-[11px] text-slate-500 font-mono mt-1.5">
+              <div className="flex justify-between text-[11px] text-slate-400 font-mono mt-2">
                 <span>Safe (&lt;35%)</span>
-                <span>Moderate (35-65%)</span>
+                <span>Moderate (35–65%)</span>
                 <span>High (&ge;65%)</span>
               </div>
             </div>
 
-            {/* Sliders */}
-            <div className="space-y-6">
-              {/* Engagement Slider */}
+            {/* Actionable Sliders */}
+            <div className="space-y-5">
               <div>
                 <div className="flex justify-between text-xs font-semibold mb-2">
-                  <span className="text-slate-300">Target Attendance / Engagement</span>
-                  <span className="text-blue-400 font-mono font-bold">{(targetEngagement * 100).toFixed(0)}%</span>
+                  <label htmlFor="eng-slider" className="text-slate-200">
+                    Target Attendance / Engagement
+                  </label>
+                  <span className="text-blue-400 font-mono font-bold tabular-nums">
+                    {(effectiveEng * 100).toFixed(0)}%
+                  </span>
                 </div>
-                <input 
-                  type="range" 
-                  min="0.30" 
-                  max="1.0" 
+                <input
+                  id="eng-slider"
+                  type="range"
+                  min="0.30"
+                  max={maxEngagementBound}
                   step="0.05"
-                  value={targetEngagement}
-                  onChange={(e) => setTargetEngagement(parseFloat(e.target.value))}
-                  className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                  value={effectiveEng}
+                  onChange={(e) =>
+                    setTargetEngagement(parseFloat(e.target.value))
+                  }
+                  className="w-full acad-slider"
                 />
-                <span className="text-[11px] text-slate-500 mt-1 block">
-                  Current baseline: {(INITIAL_STUDENT.engagementRate * 100).toFixed(0)}%
-                </span>
+                <div className="flex justify-between text-[11px] text-slate-400 mt-1.5">
+                  <span>
+                    Baseline: {(snapshot.engagementRate * 100).toFixed(0)}%
+                  </span>
+                  <span>Max bound: {(maxEngagementBound * 100).toFixed(0)}%</span>
+                </div>
               </div>
 
-              {/* Score Slider */}
               <div>
                 <div className="flex justify-between text-xs font-semibold mb-2">
-                  <span className="text-slate-300">Target Assessment Mark</span>
-                  <span className="text-blue-400 font-mono font-bold">{targetScore.toFixed(0)} / 100</span>
+                  <label htmlFor="score-slider" className="text-slate-200">
+                    Target Assessment Mean
+                  </label>
+                  <span className="text-blue-400 font-mono font-bold tabular-nums">
+                    {effectiveScore.toFixed(0)} / 100
+                  </span>
                 </div>
-                <input 
-                  type="range" 
-                  min="30" 
-                  max="95" 
+                <input
+                  id="score-slider"
+                  type="range"
+                  min="30"
+                  max={maxScoreBound}
                   step="2"
-                  value={targetScore}
+                  value={effectiveScore}
                   onChange={(e) => setTargetScore(parseFloat(e.target.value))}
-                  className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                  className="w-full acad-slider"
                 />
-                <span className="text-[11px] text-slate-500 mt-1 block">
-                  Current baseline: {INITIAL_STUDENT.avgScore} pts
-                </span>
+                <div className="flex justify-between text-[11px] text-slate-400 mt-1.5">
+                  <span>Baseline: {snapshot.avgScore} pts</span>
+                  <span>Max bound: {maxScoreBound} pts</span>
+                </div>
               </div>
             </div>
 
-            {/* Solver Guidance Note */}
-            <div className="mt-6 p-4 rounded-xl bg-blue-950/20 border border-blue-900/40 text-xs text-slate-300 leading-relaxed">
-              <span className="font-bold text-blue-400 block mb-1">Support Guidance Policy</span>
-              {isSafe ? (
-                <span className="text-emerald-400 font-medium flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4" /> Feasible path reached! Maintaining ~{(targetEngagement * 100).toFixed(0)}% engagement moves student to the Safe trajectory.
-                </span>
-              ) : (
-                "These projections reflect empirical trends from past cohorts, not a causal guarantee. Increasing engagement by +20% and quiz scores by +15 pts is estimated to transition to the Safe tier."
-              )}
+            {/* Solver Result / No Feasible Plan State */}
+            {!optimalPlan.feasible ? (
+              <div
+                role="alert"
+                className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/25 text-xs text-rose-200 leading-relaxed space-y-1.5"
+              >
+                <div className="font-bold text-rose-300 flex items-center gap-1.5">
+                  <AlertOctagon className="w-4 h-4 shrink-0" />
+                  No feasible plan within current bounds
+                </div>
+                <p className="text-slate-300">
+                  Even at maximum bounded engagement (
+                  {(maxEngagementBound * 100).toFixed(0)}%) and assessment score
+                  ({maxScoreBound}), projected risk remains above the 35% Safe
+                  threshold. Please schedule a 1-on-1 advising meeting to
+                  discuss academic support options.
+                </p>
+              </div>
+            ) : simTier === "Safe" ? (
+              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-200 leading-relaxed flex items-start gap-2.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold text-emerald-300 block mb-0.5">
+                    Safe Trajectory Reached
+                  </span>
+                  Sustaining ~{(effectiveEng * 100).toFixed(0)}% engagement and{" "}
+                  {effectiveScore.toFixed(0)}/100 assessment mean aligns with
+                  the Safe support tier.
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-slate-300 leading-relaxed flex items-start gap-2.5">
+                <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold text-blue-300 block mb-0.5">
+                    Minimum-Cost Path Available
+                  </span>
+                  Reaching{" "}
+                  <span className="font-mono font-semibold text-white">
+                    {((optimalPlan.eng ?? 0) * 100).toFixed(0)}%
+                  </span>{" "}
+                  engagement and{" "}
+                  <span className="font-mono font-semibold text-white">
+                    {optimalPlan.score}
+                  </span>{" "}
+                  mean score is the lowest-cost adjustment to enter the Safe
+                  tier.
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={applyOptimalPlan}
+                disabled={!optimalPlan.feasible || optimalPlan.alreadySafe}
+                className="py-2.5 px-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold text-white rounded-xl transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+              >
+                <Wand2 className="w-3.5 h-3.5" />
+                Apply Safe Plan
+              </button>
+              <button
+                type="button"
+                onClick={resetToBaseline}
+                className="py-2.5 px-3 bg-slate-800/80 hover:bg-slate-700/80 text-xs font-semibold text-slate-200 rounded-xl transition-colors border border-slate-700/70 flex items-center justify-center gap-1.5"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reset Baseline
+              </button>
             </div>
 
-            {/* Reset Button */}
-            <button
-              onClick={() => {
-                setTargetEngagement(INITIAL_STUDENT.engagementRate);
-                setTargetScore(INITIAL_STUDENT.avgScore);
-              }}
-              className="w-full mt-4 py-2.5 bg-slate-800/80 hover:bg-slate-700/80 text-xs font-semibold text-slate-300 rounded-xl transition-colors border border-slate-700/60"
-            >
-              Reset to Current Baseline
-            </button>
+            <p className="text-[11px] text-slate-400 leading-relaxed pt-2 border-t border-slate-800/80">
+              <strong className="text-slate-300">Support Guidance Policy:</strong>{" "}
+              What-If projections reflect empirical associations from past
+              cohorts, not causal guarantees. Demographic and prior-attempt
+              fields remain fixed.
+            </p>
           </div>
         </section>
       </main>
