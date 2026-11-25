@@ -1,0 +1,332 @@
+{
+  "model_version": "v1.0.0",
+  "target_requirements": {
+    "week_8_recall_target": ">= 0.80",
+    "p95_latency_target": "< 100 ms",
+    "temporal_leak_free": true,
+    "demographics_excluded_from_features": true
+  },
+  "checkpoints": {
+    "week_4": {
+      "LogisticRegression": {
+        "roc_auc": {
+          "mean": 0.7039,
+          "std": 0.0047
+        },
+        "pr_auc": {
+          "mean": 0.6371,
+          "std": 0.0098
+        },
+        "macro_f1": {
+          "mean": 0.6055,
+          "std": 0.0034
+        },
+        "recall_at_risk_default": {
+          "mean": 0.5568,
+          "std": 0.0082
+        },
+        "recall_at_risk_tuned": {
+          "mean": 0.8107,
+          "std": 0.0056
+        },
+        "precision_at_risk_tuned": {
+          "mean": 0.5386,
+          "std": 0.0025
+        },
+        "brier": {
+          "mean": 0.2164,
+          "std": 0.0015
+        }
+      },
+      "RandomForest": {
+        "roc_auc": {
+          "mean": 0.6786,
+          "std": 0.004
+        },
+        "pr_auc": {
+          "mean": 0.6186,
+          "std": 0.0059
+        },
+        "macro_f1": {
+          "mean": 0.6129,
+          "std": 0.0053
+        },
+        "recall_at_risk_default": {
+          "mean": 0.5632,
+          "std": 0.007
+        },
+        "recall_at_risk_tuned": {
+          "mean": 0.7112,
+          "std": 0.0098
+        },
+        "precision_at_risk_tuned": {
+          "mean": 0.5474,
+          "std": 0.0047
+        },
+        "brier": {
+          "mean": 0.2394,
+          "std": 0.002
+        }
+      },
+      "XGBoost": {
+        "roc_auc": {
+          "mean": 0.7355,
+          "std": 0.0056
+        },
+        "pr_auc": {
+          "mean": 0.6907,
+          "std": 0.0086
+        },
+        "macro_f1": {
+          "mean": 0.6047,
+          "std": 0.0037
+        },
+        "recall_at_risk_default": {
+          "mean": 0.657,
+          "std": 0.0066
+        },
+        "recall_at_risk_tuned": {
+          "mean": 0.8491,
+          "std": 0.0118
+        },
+        "precision_at_risk_tuned": {
+          "mean": 0.5385,
+          "std": 0.0024
+        },
+        "brier": {
+          "mean": 0.2074,
+          "std": 0.0019
+        }
+      }
+    },
+    "week_8": {
+      "LogisticRegression": {
+        "roc_auc": {
+          "mean": 0.7336,
+          "std": 0.0038
+        },
+        "pr_auc": {
+          "mean": 0.6578,
+          "std": 0.0054
+        },
+        "macro_f1": {
+          "mean": 0.6552,
+          "std": 0.0033
+        },
+        "recall_at_risk_default": {
+          "mean": 0.4938,
+          "std": 0.0134
+        },
+        "recall_at_risk_tuned": {
+          "mean": 0.7641,
+          "std": 0.0033
+        },
+        "precision_at_risk_tuned": {
+          "mean": 0.5664,
+          "std": 0.0034
+        },
+        "brier": {
+          "mean": 0.2058,
+          "std": 0.001
+        }
+      },
+      "RandomForest": {
+        "roc_auc": {
+          "mean": 0.7583,
+          "std": 0.0036
+        },
+        "pr_auc": {
+          "mean": 0.6896,
+          "std": 0.0067
+        },
+        "macro_f1": {
+          "mean": 0.6739,
+          "std": 0.0019
+        },
+        "recall_at_risk_default": {
+          "mean": 0.5967,
+          "std": 0.0089
+        },
+        "recall_at_risk_tuned": {
+          "mean": 0.7463,
+          "std": 0.0093
+        },
+        "precision_at_risk_tuned": {
+          "mean": 0.5889,
+          "std": 0.003
+        },
+        "brier": {
+          "mean": 0.1982,
+          "std": 0.0018
+        }
+      },
+      "XGBoost": {
+        "roc_auc": {
+          "mean": 0.7935,
+          "std": 0.006
+        },
+        "pr_auc": {
+          "mean": 0.7447,
+          "std": 0.007
+        },
+        "macro_f1": {
+          "mean": 0.6654,
+          "std": 0.0055
+        },
+        "recall_at_risk_default": {
+          "mean": 0.6945,
+          "std": 0.0088
+        },
+        "recall_at_risk_tuned": {
+          "mean": 0.8456,
+          "std": 0.0089
+        },
+        "precision_at_risk_tuned": {
+          "mean": 0.5689,
+          "std": 0.0045
+        },
+        "brier": {
+          "mean": 0.1841,
+          "std": 0.0024
+        }
+      }
+    },
+    "week_12": {
+      "LogisticRegression": {
+        "roc_auc": {
+          "mean": 0.7942,
+          "std": 0.001
+        },
+        "pr_auc": {
+          "mean": 0.7498,
+          "std": 0.0021
+        },
+        "macro_f1": {
+          "mean": 0.7052,
+          "std": 0.0033
+        },
+        "recall_at_risk_default": {
+          "mean": 0.5258,
+          "std": 0.0123
+        },
+        "recall_at_risk_tuned": {
+          "mean": 0.7255,
+          "std": 0.0064
+        },
+        "precision_at_risk_tuned": {
+          "mean": 0.6188,
+          "std": 0.005
+        },
+        "brier": {
+          "mean": 0.1764,
+          "std": 0.0001
+        }
+      },
+      "RandomForest": {
+        "roc_auc": {
+          "mean": 0.8097,
+          "std": 0.0035
+        },
+        "pr_auc": {
+          "mean": 0.7673,
+          "std": 0.0047
+        },
+        "macro_f1": {
+          "mean": 0.7149,
+          "std": 0.0062
+        },
+        "recall_at_risk_default": {
+          "mean": 0.6134,
+          "std": 0.0108
+        },
+        "recall_at_risk_tuned": {
+          "mean": 0.7609,
+          "std": 0.0121
+        },
+        "precision_at_risk_tuned": {
+          "mean": 0.6221,
+          "std": 0.0053
+        },
+        "brier": {
+          "mean": 0.1694,
+          "std": 0.0015
+        }
+      },
+      "XGBoost": {
+        "roc_auc": {
+          "mean": 0.8267,
+          "std": 0.0038
+        },
+        "pr_auc": {
+          "mean": 0.7895,
+          "std": 0.0058
+        },
+        "macro_f1": {
+          "mean": 0.7001,
+          "std": 0.0023
+        },
+        "recall_at_risk_default": {
+          "mean": 0.7025,
+          "std": 0.0112
+        },
+        "recall_at_risk_tuned": {
+          "mean": 0.8375,
+          "std": 0.0063
+        },
+        "precision_at_risk_tuned": {
+          "mean": 0.5896,
+          "std": 0.0028
+        },
+        "brier": {
+          "mean": 0.1661,
+          "std": 0.002
+        }
+      }
+    }
+  },
+  "fairness_audit": {
+    "week_8": {
+      "gender": {
+        "M": {
+          "sample_count": 14567,
+          "at_risk_recall": 0.8683,
+          "false_positive_rate": 0.4032
+        },
+        "F": {
+          "sample_count": 11955,
+          "at_risk_recall": 0.8692,
+          "false_positive_rate": 0.4881
+        }
+      },
+      "disability": {
+        "N": {
+          "sample_count": 24037,
+          "at_risk_recall": 0.8657,
+          "false_positive_rate": 0.4362
+        },
+        "Y": {
+          "sample_count": 2485,
+          "at_risk_recall": 0.892,
+          "false_positive_rate": 0.517
+        }
+      },
+      "age_band": {
+        "55<=": {
+          "sample_count": 185,
+          "at_risk_recall": 0.8269,
+          "false_positive_rate": 0.3083
+        },
+        "35-55": {
+          "sample_count": 7884,
+          "at_risk_recall": 0.8505,
+          "false_positive_rate": 0.4175
+        },
+        "0-35": {
+          "sample_count": 18453,
+          "at_risk_recall": 0.8756,
+          "false_positive_rate": 0.4563
+        }
+      }
+    }
+  }
+}
