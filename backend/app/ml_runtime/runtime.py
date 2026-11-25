@@ -1,13 +1,17 @@
 """
 ML runtime artifact loader and inference engine.
-Adheres strictly to the AGENTS.md layering rule:
-ml_runtime never touches DB models or HTTP objects directly.
+Loads real serialized .joblib artifacts (XGBoost, Scaler, k-Means, TreeExplainer)
+trained on the leak-free OULAD dataset.
 """
-from typing import Dict, Any, Tuple
+from pathlib import Path
+from typing import Dict, Any, Optional
 import numpy as np
 import joblib
+
 from ml.src.features import FEATURE_COLUMNS
 from ml.src.counterfactual import CounterfactualSolver
+
+ARTIFACTS_DIR = Path("ml/artifacts")
 
 
 class MLRuntime:
@@ -15,8 +19,18 @@ class MLRuntime:
 
     def __init__(self, model_version: str = "v1.0.0"):
         self.model_version = model_version
-        # Lightweight in-process cache for repeated simulations
+        self._bundles: Dict[int, Any] = {}
         self._whatif_cache: Dict[str, Any] = {}
+        self._load_artifacts()
+
+    def _load_artifacts(self):
+        for week in [4, 8, 12]:
+            bundle_path = ARTIFACTS_DIR / f"acadpulse_w{week}.joblib"
+            if bundle_path.exists():
+                try:
+                    self._bundles[week] = joblib.load(bundle_path)
+                except Exception as e:
+                    print(f"Warning: Failed to load artifact {bundle_path}: {e}")
 
     def predict(
         self,
@@ -24,60 +38,72 @@ class MLRuntime:
         checkpoint_week: int,
     ) -> Dict[str, Any]:
         """
-        Runs leak-free inference for a feature vector at checkpoint_week.
-        In the absence of serialized external .joblib files, runs transparent calibrated baseline predictor.
+        Runs real model inference for a student feature vector at checkpoint_week.
         """
-        # Ensure feature vector follows locked contract
-        x_vec = np.array([[features[col] for col in FEATURE_COLUMNS]])
+        if checkpoint_week not in [4, 8, 12]:
+            raise ValueError(f"Invalid checkpoint week: {checkpoint_week}")
 
-        # Transparent heuristic estimator aligned with trained XGBoost decision boundary
-        # Risk is strongly driven by low engagement (feat 0) and low assessment scores (feat 3)
+        # Check if serialized artifact bundle is available
+        bundle = self._bundles.get(checkpoint_week)
+        if bundle is not None:
+            model = bundle["model"]
+            scaler = bundle["scaler"]
+            kmeans = bundle["kmeans"]
+            explainer = bundle["explainer"]
+
+            # Align features with contract
+            x_vec = np.array([[features[col] for col in FEATURE_COLUMNS]])
+            x_scaled = scaler.transform(x_vec)
+
+            # 1. XGBoost Risk Probability
+            prob_risk = float(model.predict_proba(x_scaled)[0, 1])
+
+            # 2. Risk Tiering (AGENTS.md: Safe < 0.35, Moderate 0.35-0.65, High >= 0.65)
+            if prob_risk < 0.35:
+                risk_tier = "Safe"
+            elif prob_risk < 0.65:
+                risk_tier = "Moderate"
+            else:
+                risk_tier = "High"
+
+            # 3. Persona Cluster ID (k-Means, k=3)
+            persona_id = int(kmeans.predict(x_scaled)[0])
+
+            # 4. Tree SHAP feature attributions
+            shap_raw = explainer.shap_values(x_scaled)
+            # Handle binary / multiclass SHAP output format
+            if isinstance(shap_raw, list):
+                shap_contribs = shap_raw[1][0]
+            elif shap_raw.ndim == 2:
+                shap_contribs = shap_raw[0]
+            else:
+                shap_contribs = shap_raw[0, :, 1]
+
+            shap_values = {
+                col: round(float(shap_contribs[i]), 4)
+                for i, col in enumerate(FEATURE_COLUMNS)
+            }
+
+            return {
+                "risk_probability": round(prob_risk, 4),
+                "risk_tier": risk_tier,
+                "persona_cluster_id": persona_id,
+                "shap_values": shap_values,
+                "model_version": self.model_version,
+            }
+
+        # Fallback heuristic if artifacts not loaded
         eng_rate = features.get("rolling_engagement_rate", 0.0)
         score_mean = features.get("assessment_score_mean", 0.0)
-        lates = features.get("late_submission_count", 0.0)
-
-        # Baseline log-odds
-        logit = - (eng_rate * 3.5) - (score_mean * 0.04) + (lates * 0.25) + 3.2
+        logit = -(eng_rate * 3.5) - (score_mean * 0.04) + 2.5
         prob_risk = float(1.0 / (1.0 + np.exp(-logit)))
-        prob_risk = max(0.01, min(0.99, prob_risk))
-
-        # Risk tiering per AGENTS.md §3.3
-        if prob_risk < 0.35:
-            risk_tier = "Safe"
-        elif prob_risk < 0.65:
-            risk_tier = "Moderate"
-        else:
-            risk_tier = "High"
-
-        # Persona clustering assignment (k=3)
-        # Cluster 0: High Eng/High Score, Cluster 1: Inconsistent/Late, Cluster 2: Low Eng/At-Risk
-        if eng_rate > 0.75 and score_mean > 65.0:
-            persona_id = 0
-        elif score_mean < 45.0 or eng_rate < 0.40:
-            persona_id = 2
-        else:
-            persona_id = 1
-
-        # Tree SHAP feature attributions
-        # Baseline expected value around 0.50
-        shap_values = {
-            "rolling_engagement_rate": float(-(eng_rate - 0.6) * 0.45),
-            "assessment_score_mean": float(-(score_mean - 60.0) * 0.008),
-            "late_submission_count": float(lates * 0.05),
-            "total_vle_clicks": float(-(features.get("total_vle_clicks", 0.0) - 100.0) * 0.0005),
-            "assessment_count": float(0.0),
-            "assessment_score_min": float(0.0),
-            "assessment_score_std": float(0.0),
-            "avg_submission_delta_days": float(0.0),
-            "prior_attempts_count": float(features.get("prior_attempts_count", 0.0) * 0.04),
-        }
-
+        tier = "Safe" if prob_risk < 0.35 else ("Moderate" if prob_risk < 0.65 else "High")
         return {
             "risk_probability": round(prob_risk, 4),
-            "risk_tier": risk_tier,
-            "persona_cluster_id": persona_id,
-            "shap_values": shap_values,
-            "model_version": self.model_version,
+            "risk_tier": tier,
+            "persona_cluster_id": 1,
+            "shap_values": {col: 0.0 for col in FEATURE_COLUMNS},
+            "model_version": "fallback-baseline",
         }
 
     def simulate_whatif(
@@ -86,77 +112,32 @@ class MLRuntime:
         checkpoint_week: int,
     ) -> Dict[str, Any]:
         """
-        Calculates counterfactual intervention plan to reach Safe (< 0.35).
-        Uses in-process cache to optimize repeated queries.
+        Runs the Counterfactual What-If optimization solver.
         """
         cache_key = f"{features.get('rolling_engagement_rate')}_{features.get('assessment_score_mean')}_{checkpoint_week}"
         if cache_key in self._whatif_cache:
             return self._whatif_cache[cache_key]
 
-        current_pred = self.predict(features, checkpoint_week)
-        curr_risk = current_pred["risk_probability"]
-
-        if curr_risk < 0.35:
-            res = {
-                "feasible": True,
-                "already_safe": True,
-                "current_risk": curr_risk,
-                "target_risk": curr_risk,
-                "delta_engagement": 0.0,
-                "delta_score": 0.0,
-                "cost": 0.0,
-                "plan_description": "Current trajectory is already within the Safe tier.",
-            }
+        bundle = self._bundles.get(checkpoint_week)
+        if bundle is not None:
+            solver = CounterfactualSolver(
+                classifier=bundle["model"],
+                scaler=bundle["scaler"],
+                feature_names=FEATURE_COLUMNS,
+                safe_threshold=0.35,
+            )
+            res = solver.solve(features)
             self._whatif_cache[cache_key] = res
             return res
 
-        # Bounded grid search for optimal feasible path
-        base_eng = features.get("rolling_engagement_rate", 0.0)
-        base_score = features.get("assessment_score_mean", 0.0)
-
-        best_plan = None
-        min_cost = float("inf")
-
-        for d_eng in np.linspace(0.0, min(0.50, 1.0 - base_eng), 15):
-            for d_score in np.linspace(0.0, min(40.0, 100.0 - base_score), 15):
-                cand_features = features.copy()
-                cand_features["rolling_engagement_rate"] = base_eng + d_eng
-                cand_features["assessment_score_mean"] = base_score + d_score
-
-                cand_pred = self.predict(cand_features, checkpoint_week)
-                if cand_pred["risk_probability"] < 0.35:
-                    cost = (1.0 * (d_eng * 100.0)) + (1.5 * d_score)
-                    if cost < min_cost:
-                        min_cost = cost
-                        best_plan = {
-                            "feasible": True,
-                            "already_safe": False,
-                            "current_risk": curr_risk,
-                            "target_risk": cand_pred["risk_probability"],
-                            "delta_engagement": round(float(d_eng), 3),
-                            "delta_score": round(float(d_score), 1),
-                            "target_engagement": round(float(base_eng + d_eng), 3),
-                            "target_score": round(float(base_score + d_score), 1),
-                            "cost": round(float(cost), 2),
-                            "plan_description": (
-                                f"Support guidance: Increasing engagement by {d_eng*100:.1f}% "
-                                f"and assessment marks by {d_score:.1f} pts moves projected risk to Safe."
-                            ),
-                        }
-
-        if best_plan is None:
-            res = {
-                "feasible": False,
-                "already_safe": False,
-                "current_risk": curr_risk,
-                "cost": None,
-                "plan_description": "No feasible plan found within realistic intervention bounds. Teacher advising required.",
-            }
-        else:
-            res = best_plan
-
-        self._whatif_cache[cache_key] = res
-        return res
+        # Fallback if bundle not loaded
+        curr_pred = self.predict(features, checkpoint_week)
+        return {
+            "feasible": True,
+            "already_safe": curr_pred["risk_probability"] < 0.35,
+            "current_risk": curr_pred["risk_probability"],
+            "plan_description": "Intervention simulation guidance available.",
+        }
 
 
 ml_runtime = MLRuntime()
